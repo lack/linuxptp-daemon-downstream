@@ -48,6 +48,19 @@ func filterSetCalls(calls []pmc.SetCall, method string) []pmc.SetCall {
 	return out
 }
 
+func TestTS2PHCFreerunCondition(t *testing.T) {
+	e := newPMCTestEventHandler()
+	e.LeadingClockData.toFreeRunThreshold = 1000
+	e.clkSyncState[testCfgName] = &clockSyncState{leadingIFace: "ens0"}
+	e.data[testCfgName] = []*Data{{
+		ProcessName: TS2PHCProcessName,
+		Details:     DDetails{{IFace: "ens0", State: PTP_FREERUN}},
+	}}
+	assert.True(t, e.freeRunCondition(testCfgName))
+	e.data[testCfgName][0].Details[0].State = PTP_LOCKED
+	assert.False(t, e.freeRunCondition(testCfgName))
+}
+
 // --- applyIfLockedBC ---
 
 func TestApplyIfLockedBC_LockedRunsFn(t *testing.T) {
