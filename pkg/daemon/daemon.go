@@ -247,6 +247,7 @@ type ptpProcess struct {
 	depProcess               []process // these are list of dependent process which needs to be started/stopped if the parent process is starts/stops
 	nodeProfile              ptpv1.PtpProfile
 	logParser                parser.MetricsExtractor
+	ts2phcPoll               ts2phcPollState
 	pmcCheck                 bool
 	clockClassRunning        atomic.Bool
 	lastTransitionResult     event.PTPState
@@ -816,6 +817,9 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			dn:                   dn,
 		}
 
+		if pProcess == ts2phcProcessName {
+			dprocess.resetPollCycle()
+		}
 		if pProcess == ptp4lProcessName {
 			if port, ok := (*nodeProfile).PtpSettings["upstreamPort"]; ok && clockType == event.BC {
 				dprocess.tBCAttributes.trIfaceName = port
@@ -1149,6 +1153,9 @@ func (p *ptpProcess) cmdRun(stdoutToSocket bool, pm *plugin.PluginManager) {
 
 		// don't discard process stderr output
 		cmd.Stderr = cmd.Stdout
+		if p.name == ts2phcProcessName {
+			p.resetPollCycle()
+		}
 
 		if !stdoutToSocket {
 			scanner := bufio.NewScanner(cmdReader)
