@@ -325,6 +325,7 @@ type ptpProcess struct {
 	depProcess            []process // these are list of dependent process which needs to be started/stopped if the parent process is starts/stops
 	nodeProfile           ptpv1.PtpProfile
 	logParser             parser.MetricsExtractor
+	ts2phcPoll            ts2phcPollState
 	clockType             event.ClockType
 	ptpClockThreshold     *ptpv1.PtpClockThreshold
 	haProfile             map[string][]string // stores list of interface name for each profile
@@ -1163,6 +1164,9 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			dn:      dn,
 		}
 
+		if pProcess == ts2phcProcessName {
+			dprocess.resetPollCycle()
+		}
 		if pProcess == ptp4lProcessName {
 			if len(upstreamPorts) > 0 && clockType == event.BC {
 				dprocess.tBCAttributes.trIfaceNames = upstreamPorts
@@ -1778,6 +1782,9 @@ func (p *ptpProcess) cmdRun(stdoutToSocket bool, pm *plugin.PluginManager) {
 		}
 
 		cmd.Stderr = cmd.Stdout
+		if p.name == ts2phcProcessName {
+			p.resetPollCycle()
+		}
 
 		if !stdoutToSocket {
 			scanner := bufio.NewScanner(cmdReader)

@@ -137,7 +137,7 @@ func (e *EventHandler) updateBCState(event EventChannel) (clockSyncState, bool) 
 	glog.V(14).Info("current BC state: ", e.clkSyncState[cfgName].state)
 	switch e.clkSyncState[cfgName].state {
 	case PTP_NOTSET, PTP_FREERUN:
-		if !e.isSourceLostBC(cfgName) && e.inSyncCondition(cfgName) {
+		if !e.freeRunCondition(cfgName) && !e.isSourceLostBC(cfgName) && e.inSyncCondition(cfgName) {
 			e.clkSyncState[cfgName].state = PTP_LOCKED
 			glog.Info("BC FSM: FREERUN to LOCKED")
 			e.LeadingClockData.lastInSpec = true
@@ -604,6 +604,13 @@ func (e *EventHandler) freeRunCondition(cfgName string) bool {
 							glog.Infof("free-run condition on DPLL %s", dd.IFace)
 							return true
 						}
+					}
+				}
+			case TS2PHCProcessName:
+				for _, dd := range d.Details {
+					if dd.State == PTP_FREERUN {
+						glog.Infof("free-run condition on ts2phc interface %s", dd.IFace)
+						return true
 					}
 				}
 			case PTP4l:
