@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"math"
 	"strings"
 	"time"
 
@@ -89,7 +90,9 @@ func processParsedMetrics(process *ptpProcess, ptpMetrics *parser.Metrics) {
 	}
 
 	// Update PTP metrics using the parsed data
-	updatePTPMetrics(ptpMetrics.Source, process.name, ifaceForMetrics, ptpMetrics.Offset, ptpMetrics.MaxOffset, ptpMetrics.FreqAdj, ptpMetrics.Delay)
+	if !math.IsNaN(ptpMetrics.Offset) {
+		updatePTPMetrics(ptpMetrics.Source, process.name, ifaceForMetrics, ptpMetrics.Offset, ptpMetrics.MaxOffset, ptpMetrics.FreqAdj, ptpMetrics.Delay)
+	}
 
 	// Update clock state metrics if available
 	if ptpMetrics.ClockState != "" {
@@ -110,7 +113,7 @@ func processParsedMetrics(process *ptpProcess, ptpMetrics *parser.Metrics) {
 	state := convertParserClockStateEventPTPState(ptpMetrics.ClockState)
 
 	// transition to FREERUN if offset is outside configured thresholds
-	if shouldFreeRun(state, ptpMetrics.Offset, process.ptpClockThreshold) {
+	if !math.IsNaN(ptpMetrics.Offset) && shouldFreeRun(state, ptpMetrics.Offset, process.ptpClockThreshold) {
 		state = event.PTP_FREERUN
 	}
 
@@ -124,13 +127,14 @@ func processParsedMetrics(process *ptpProcess, ptpMetrics *parser.Metrics) {
 		}
 		process.sendPtp4lOffsetEvent()
 	case ts2phcProcessName:
-		if process.dn != nil {
+		if process.dn != nil && !math.IsNaN(ptpMetrics.Offset) {
 			process.dn.HandleDelayedPhc2sysStartup(process.name, ptpMetrics.Offset, process.nodeProfile.Name)
 		}
 		// Send event for ts2phc
 		eventSource := process.ifaces.GetEventSource(process.ifaces.GetPhcID2IFace(ptpMetrics.Iface))
-		values := map[event.ValueType]interface{}{
-			event.OFFSET: int64(ptpMetrics.Offset),
+		values := map[event.ValueType]interface{}{}
+		if !math.IsNaN(ptpMetrics.Offset) {
+			values[event.OFFSET] = int64(ptpMetrics.Offset)
 		}
 		if eventSource == event.GNSS {
 			values[event.NMEA_STATUS] = int64(1)
@@ -154,6 +158,10 @@ func processParsedMetrics(process *ptpProcess, ptpMetrics *parser.Metrics) {
 
 // processParsedEvent handles PTP events extracted by the parser
 func processParsedEvent(process *ptpProcess, ptpEvent *parser.PTPEvent) {
+	if process.name == ts2phcProcessName {
+		process.processTS2PhcEvent(ptpEvent)
+		return
+	}
 	if process.name != ptp4lProcessName {
 		return
 	}

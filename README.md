@@ -3,11 +3,23 @@
 
 - [linuxptp Daemon](#linuxptp-daemon)
 - [Quick Start](#quick-start)
+- [ts2phc Poll Monitoring](#ts2phc-poll-monitoring)
 
 ## Linuxptp Daemon
 Linuxptp Daemon runs as Kubernetes DaemonSet and manages linuxptp processes (ptp4l, phc2sys, timemaster).
 It mounts linuxptp configmap which contains aggregated ptp configurations and applies specific config for each node.
 Both linuxptp daemon and ptp configmap are created in `openshift-ptp` namespace.
+
+## ts2phc Poll Monitoring
+
+The daemon tracks configured PHCs as sinks, sources, or unmanaged devices. Poll
+failures for sinks emit FREERUN events, including state-only events when no offset
+can be measured. These events also degrade a T-BC from LOCKED to FREERUN; a
+healthy poll allows recovery. PHC roles and poll cycles reset when ts2phc starts.
+See [parser documentation](pkg/parser/README.md#ts2phc-poll-monitoring).
+
+The vendored testify dependency lacks the `require` package used by the new
+tests; run them with `go test -mod=mod ./pkg/parser ./pkg/daemon ./pkg/event`.
 
 ## Quick Start
 
